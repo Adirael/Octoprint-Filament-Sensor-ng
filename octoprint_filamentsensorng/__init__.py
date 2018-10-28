@@ -5,8 +5,7 @@ from flask import jsonify
 import octoprint.plugin
 from octoprint.events import Events
 import RPi.GPIO as GPIO
-from time import sleep
-
+from time import sleep, time
 
 class filamentsensorngPlugin(octoprint.plugin.StartupPlugin,
                              octoprint.plugin.EventHandlerPlugin,
@@ -52,6 +51,14 @@ class filamentsensorngPlugin(octoprint.plugin.StartupPlugin,
     def pause_print(self):
         return self._settings.get_boolean(["pause_print"])
 
+    @property
+    def send_gcode_only_once(self):
+        return self._settings.get_boolean(["send_gcode_only_once"])
+
+    @property
+    def sensor_triggered_at(self):
+        return int(self.triggered_at)
+
     def _setup_sensor(self):
         if self.sensor_enabled():
             self._logger.info("Setting up sensor.")
@@ -80,6 +87,7 @@ class filamentsensorngPlugin(octoprint.plugin.StartupPlugin,
             'no_filament_gcode':'',
             'debug_mode':0, # Debug off!
             'pause_print':True,
+            'send_gcode_only_once':False, # Default set to False for backward compatibility
         })
     
     def debug_only_output(self, string):
@@ -112,6 +120,7 @@ class filamentsensorngPlugin(octoprint.plugin.StartupPlugin,
         ):
             self._logger.info("%s: Enabling filament sensor." % (event))
             if self.sensor_enabled():
+                self.triggered_at = 0
                 GPIO.remove_event_detect(self.pin)
                 GPIO.add_event_detect(
                     self.pin, GPIO.BOTH,
@@ -138,14 +147,26 @@ class filamentsensorngPlugin(octoprint.plugin.StartupPlugin,
     def sensor_callback(self, _):
         sleep(self.poll_time/1000)
         self.debug_only_output('Pin: '+str(GPIO.input(self.pin)))
+
         if self.no_filament():
-            self.filamentsensorngPlugin_confirmations_tracking+=1
+            self.filamentsensorngPlugin_confirmations_tracking += 1
             self.debug_only_output('Confirmations: '+str(self.filamentsensorngPlugin_confirmations_tracking))
-            if self.confirmations<=self.filamentsensorngPlugin_confirmations_tracking:
+
+            if self.confirmations <= self.filamentsensorngPlugin_confirmations_tracking:
                 self._logger.info("Out of filament!")
+
+                # Check if we want to just end it once
+                if self.send_gcode_only_once 
+                    if self.sensor_triggered_at() > int(time()) - 300:
+                        self._logger.info("Sensor callback executed less than 5 minutes ago, not executing again")
+                        return
+                    else
+                        self.triggered_at = int(time())
+
                 if self.pause_print:
                     self._logger.info("Pausing print.")
                     self._printer.pause_print()
+
                 if self.no_filament_gcode:
                     self._logger.info("Sending out of filament GCODE")
                     self._printer.commands(self.no_filament_gcode)
@@ -161,17 +182,17 @@ class filamentsensorngPlugin(octoprint.plugin.StartupPlugin,
 
                 # version check: github repository
                 type="github_release",
-                user="Red-M",
+                user="Red_M",
                 repo="Octoprint-Filament-Sensor-ng",
                 current=self._plugin_version,
 
                 # update method: pip
-                pip="https://github.com/Red-M/Octoprint-Filament-Sensor-ng/archive/{target_version}.zip"
+                pip="https://github.com/Red_M/Octoprint-Filament-Sensor-ng/archive/{target_version}.zip"
             )
         )
 
 __plugin_name__ = "Filament Sensor NG"
-__plugin_version__ = "1.0.2"
+__plugin_version__ = "1.0.3"
 
 def __plugin_load__():
     global __plugin_implementation__
