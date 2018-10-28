@@ -59,4 +59,17 @@
             </label>
         </div>
     </div>
+    <div class="control-group">
+        <div class="controls" data-toggle="tooltip" title="{{ _('With this option checked, the plugin will ignore subsequent reports of out of filament until the print is resumed again.') }}">
+            <label class="checkbox">
+                <input type="checkbox" data-bind="checked: settings.plugins.filamentsensorng.send_gcode_only_once"> {{ _('Send GCODE only once when out of filament. This flag resets every 5 minutes') }}
+            </label>
+        </div>
+    </div>
+    <div class="control-group">
+        <label class="control-label">{{ _('Trigger timeout:') }}</label>
+        <div class="controls" data-toggle="tooltip" title="{{ _('How long (in seconds) ignore subsequent triggers') }}">
+            <input type="number" step="any" min="0" class="input-mini text-right" data-bind="value: settings.plugins.filamentsensorng.trigger_timeout">
+        </div>
+    </div>
 </form>
